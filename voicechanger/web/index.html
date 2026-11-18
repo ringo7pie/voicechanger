@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="vc-token" content="__VOICECHANGER_TOKEN__">
+<title>VoiceChanger</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #5d6677; --line: #d9dde5;
+    --accent: #2f6fde; --accent-text: #ffffff; --danger: #c62f2f; --danger-bg: #fdecec; --ok: #23864a;
+    --meter: #3b9b5e; --meter-hot: #d9822b; --meter-clip: #c62f2f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181e; --panel: #1e232b; --text: #e6e9ef; --muted: #9aa3b2; --line: #333a46;
+      --accent: #5b8ff0; --accent-text: #0b1020; --danger: #ff6b6b; --danger-bg: #3a1d20; --ok: #5cc98a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", "Yu Gothic UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  h1 { font-size: 20px; margin: 4px 0 0; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+           border-radius: 8px; padding: 10px 8px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button.pending { outline: 2px dashed var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: grid; grid-template-columns: 9.5em 1fr 5.5em; gap: 10px; align-items: center; margin: 6px 0; }
+  .row output { text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; }
+  select { font: inherit; padding: 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); width: 100%; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .presets button { padding: 6px 10px; }
+  .banner { border-radius: 8px; padding: 10px 12px; background: var(--danger-bg); color: var(--danger); font-weight: 600; display: none; }
+  .banner.show { display: block; }
+  .notice { color: var(--muted); min-height: 1.5em; }
+  .meter { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; }
+  .meter > div { height: 100%; width: 0; background: var(--meter); transition: width .08s linear; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 4px 16px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .switch { display: flex; align-items: center; gap: 8px; }
+  @media (max-width: 560px) {
+    .modes { grid-template-columns: repeat(2, 1fr); }
+    .row { grid-template-columns: 1fr 4.5em; }
+    .row label { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>VoiceChanger</h1>
+  <div id="danger" class="banner"></div>
+  <div id="error" class="banner"></div>
+
+  <section>
+    <h2>モード</h2>
+    <div class="modes">
+      <button data-mode="dsp">ピッチ・フォルマント</button>
+      <button data-mode="ai">AI（Beatrice）</button>
+      <button data-mode="mute">無音</button>
+      <button data-mode="through">素の声（確認用）</button>
+    </div>
+    <p class="notice" id="notice"></p>
+  </section>
+
+  <section id="dsp-panel">
+    <h2>ピッチ・フォルマント</h2>
+    <div class="presets" id="presets"></div>
+    <div class="row"><label for="semitones">ピッチ（半音）</label><input id="semitones" type="range" min="-12" max="12" step="0.5"><output id="semitones-out"></output></div>
+    <div class="row"><label for="formant">フォルマント（倍）</label><input id="formant" type="range" min="0.5" max="2" step="0.01"><output id="formant-out"></output></div>
+    <p class="muted">フォルマントは 1.0 で元の声の響きのまま。上げると細く、下げると太くなる。</p>
+  </section>
+
+  <section id="ai-panel">
+    <h2>AI（Beatrice 2 公式モデル 1）</h2>
+    <div class="row"><label for="voice">声</label><select id="voice"></select><span></span></div>
+    <div class="row"><label for="pitch-offset">ピッチの微調整</label><input id="pitch-offset" type="range" min="-12" max="12" step="0.125"><output id="pitch-offset-out"></output></div>
+    <div class="row"><label for="source-pitch">自分の声の高さ</label><input id="source-pitch" type="range" min="30" max="80" step="0.125"><output id="source-pitch-out"></output></div>
+    <div class="row"><label for="ai-formant">フォルマント</label><input id="ai-formant" type="range" min="-2" max="2" step="0.5"><output id="ai-formant-out"></output></div>
+    <div class="row"><label for="ai-gain">AI の出力（dB）</label><input id="ai-gain" type="range" min="-20" max="20" step="0.5"><output id="ai-gain-out"></output></div>
+    <p class="muted" id="ai-shift"></p>
+    <p class="muted">声ごとの利用規約に従ってください（README の「権利と注意」）。つくよみちゃん・刻鳴時雨の声として使う場合はクレジットが要ります。</p>
+  </section>
+
+  <section>
+    <h2>出力</h2>
+    <div class="row"><label for="gain">全体の音量（dB）</label><input id="gain" type="range" min="-20" max="20" step="0.5"><output id="gain-out"></output></div>
+    <div class="row"><label>入力</label><div class="meter"><div id="meter-in"></div></div><output id="in-db"></output></div>
+    <div class="row"><label>出力</label><div class="meter"><div id="meter-out"></div></div><output id="out-db"></output></div>
+    <div class="switch"><input id="monitor" type="checkbox"><label for="monitor">モニター（ヘッドホンでも聴く。OBS の録画中は使えない）</label></div>
+  </section>
+
+  <section>
+    <h2>状態</h2>
+    <div class="stats" id="stats"></div>
+  </section>
+</main>
+<script>
+"use strict";
+const token = document.querySelector('meta[name="vc-token"]').content;
+const $ = (id) => document.getElementById(id);
+let latest = null;
+let editing = new Set();
+
+async function post(path, body) {
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-VoiceChanger-Token": token },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json();
+    if (!response.ok) { showError(data.error || ("エラー " + response.status)); return null; }
+    showError("");
+    if (data.status) render(data.status);
+    return data.result;
+  } catch (error) { showError("エンジンにつながりません: " + error); return null; }
+}
+
+function showError(message) {
+  const element = $("error");
+  element.textContent = message;
+  element.classList.toggle("show", Boolean(message));
+}
+
+function setRange(id, value, text) {
+  if (editing.has(id) || value === undefined || value === null) return;
+  $(id).value = value;
+  $(id + "-out").textContent = text;
+}
+
+function meter(id, decibels) {
+  const ratio = Math.max(0, Math.min(1, (decibels + 60) / 60));
+  const bar = $(id);
+  bar.style.width = (ratio * 100).toFixed(1) + "%";
+  bar.style.background = decibels > -1.5 ? "var(--meter-clip)" : decibels > -9 ? "var(--meter-hot)" : "var(--meter)";
+}
+
+function render(status) {
+  latest = status;
+  const available = new Set(status.available_modes || []);
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    const mode = button.dataset.mode;
+    button.classList.toggle("active", status.mode === mode);
+    button.classList.toggle("pending", status.pending_mode === mode);
+    button.disabled = !available.has(mode);
+    button.title = available.has(mode) ? "" : (status.unavailable || {})[mode] || "使えません";
+  });
+  const danger = [];
+  if (status.mode === "through" || status.pending_mode === "through") {
+    const remaining = status.through_remaining_s == null ? "" : `（あと ${Math.ceil(status.through_remaining_s)} 秒で無音に戻ります）`;
+    danger.push("素の声が仮想マイクに出ています。録画・配信に入ります" + remaining);
+  }
+  if (status.monitor) danger.push("モニターが有効です。ヘッドホンの音はゲーム音として録画に入ります");
+  $("danger").textContent = danger.join(" / ");
+  $("danger").classList.toggle("show", danger.length > 0);
+  $("notice").textContent = status.notice || "";
+
+  const processors = status.processors || {};
+  const dsp = processors.dsp;
+  $("dsp-panel").style.display = dsp ? "" : "none";
+  if (dsp) {
+    setRange("semitones", dsp.semitones, (dsp.semitones > 0 ? "+" : "") + dsp.semitones.toFixed(1));
+    setRange("formant", dsp.formant_factor, dsp.formant_factor.toFixed(2));
+    const presets = $("presets");
+    if (!presets.dataset.ready) {
+      (status.dsp_presets || []).forEach((preset) => {
+        const button = document.createElement("button");
+        button.textContent = preset.name;
+        button.addEventListener("click", () => post("/api/dsp", { preset: preset.name }));
+        presets.appendChild(button);
+      });
+      presets.dataset.ready = "1";
+    }
+  }
+  const ai = processors.ai;
+  $("ai-panel").style.display = ai ? "" : "none";
+  if (ai) {
+    const select = $("voice");
+    if (select.options.length !== ai.voices.length) {
+      select.innerHTML = "";
+      ai.voices.forEach((voice) => {
+        const option = document.createElement("option");
+        option.value = voice.index;
+        option.textContent = voice.name;
+        select.appendChild(option);
+      });
+    }
+    if (!editing.has("voice")) select.value = ai.voice_index;
+    setRange("pitch-offset", ai.pitch_offset, (ai.pitch_offset > 0 ? "+" : "") + ai.pitch_offset.toFixed(3));
+    setRange("source-pitch", ai.average_source_pitch, ai.average_source_pitch.toFixed(2));
+    setRange("ai-formant", ai.formant_shift, ai.formant_shift.toFixed(1));
+    setRange("ai-gain", ai.output_gain_db, ai.output_gain_db.toFixed(1));
+    $("ai-shift").textContent = `VST に渡しているピッチシフト: ${ai.pitch_shift} 半音`;
+  }
+  setRange("gain", status.output_gain_db, status.output_gain_db.toFixed(1));
+  if (!editing.has("monitor")) $("monitor").checked = Boolean(status.monitor);
+  const levels = status.levels || {};
+  meter("meter-in", levels.input_peak_db ?? -180);
+  meter("meter-out", levels.output_peak_db ?? -180);
+  $("in-db").textContent = (levels.input_peak_db ?? -180) <= -90 ? "-∞" : levels.input_peak_db.toFixed(0) + " dB";
+  $("out-db").textContent = (levels.output_peak_db ?? -180) <= -90 ? "-∞" : levels.output_peak_db.toFixed(0) + " dB";
+
+  const buffers = status.buffers || {};
+  const processing = status.processing || {};
+  const devices = (status.backend || {}).devices || {};
+  const rows = [
+    ["入力", devices.input || "-"], ["出力", devices.output || "-"], ["モニター", devices.monitor || "-"],
+    ["遅延（そろえた値）", (status.aligned_latency_ms ?? 0).toFixed(0) + " ms"],
+    ["処理 平均 / 最悪", `${(processing.average_block_ms ?? 0).toFixed(2)} / ${(processing.worst_block_ms ?? 0).toFixed(2)} ms`],
+    ["出力の溜まり", (buffers.output_ms ?? 0).toFixed(0) + " ms"],
+    ["出力の途切れ", buffers.output_underruns ?? 0],
+    ["ずれ補正（捨て / 足し / 強制）", `${buffers.drift_drops ?? 0} / ${buffers.drift_inserts ?? 0} / ${buffers.forced_drops ?? 0}`],
+    ["変換エラー", buffers.processor_errors ?? 0],
+    ["OBS", status.obs ? (status.obs.connected ? (status.obs.recording ? "録画中" : "接続") : "未接続") : "-"],
+  ];
+  $("stats").innerHTML = rows.map(([name, value]) => `<div>${name}: <b>${String(value).replace(/[<>&]/g, "")}</b></div>`).join("");
+}
+
+function bindRange(id, format, send) {
+  const element = $(id);
+  element.addEventListener("input", () => { editing.add(id); $(id + "-out").textContent = format(Number(element.value)); });
+  element.addEventListener("change", async () => { await send(Number(element.value)); editing.delete(id); });
+}
+
+document.querySelectorAll("[data-mode]").forEach((button) => {
+  button.addEventListener("click", () => post("/api/mode", { mode: button.dataset.mode }));
+});
+bindRange("semitones", (value) => (value > 0 ? "+" : "") + value.toFixed(1), (value) => post("/api/dsp", { semitones: value }));
+bindRange("formant", (value) => value.toFixed(2), (value) => post("/api/dsp", { formant_factor: value }));
+bindRange("pitch-offset", (value) => (value > 0 ? "+" : "") + value.toFixed(3), (value) => post("/api/ai", { pitch_offset: value }));
+bindRange("source-pitch", (value) => value.toFixed(2), (value) => post("/api/ai", { average_source_pitch: value }));
+bindRange("ai-formant", (value) => value.toFixed(1), (value) => post("/api/ai", { formant_shift: value }));
+bindRange("ai-gain", (value) => value.toFixed(1), (value) => post("/api/ai", { output_gain_db: value }));
+bindRange("gain", (value) => value.toFixed(1), (value) => post("/api/output_gain", { output_gain_db: value }));
+$("voice").addEventListener("focus", () => editing.add("voice"));
+$("voice").addEventListener("blur", () => editing.delete("voice"));
+$("voice").addEventListener("change", () => post("/api/ai", { voice_index: Number($("voice").value) }));
+$("monitor").addEventListener("change", async () => {
+  editing.add("monitor");
+  await post("/api/monitor", { enabled: $("monitor").checked });
+  editing.delete("monitor");
+});
+
+async function poll() {
+  try {
+    const response = await fetch("/api/status", { cache: "no-store" });
+    if (response.ok) { render(await response.json()); if ($("error").textContent.startsWith("エンジンに")) showError(""); }
+  } catch (error) { showError("エンジンにつながりません（止まっている可能性）"); }
+  setTimeout(poll, 300);
+}
+poll();
+</script>
+</body>
+</html>

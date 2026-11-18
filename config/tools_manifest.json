@@ -1,0 +1,50 @@
+{
+  "comment": "取得物の版・入手先・SHA-256。sha256 が null のものは、導入スクリプトが初回の取得時に値を記録し、以後はその値で照合する。",
+  "items": {
+    "beatrice_vst": {
+      "name": "Beatrice 2 公式 VST",
+      "version": "2.0.0-rc.3",
+      "file_pattern": "beatrice_2.0.0-rc.3_win*.zip",
+      "url": "https://storage.prj-beatrice.com/beatrice_2.0.0-rc.3_win.zip",
+      "page": "https://prj-beatrice.com/",
+      "license": "独自（改変・再頒布不可）",
+      "acquire": "ブラウザで page から取得する（スクリプトからの直接取得はサーバーが 403 で拒否する）",
+      "extract_to": "runtime/beatrice/vst",
+      "sha256": "fa5b05196796194155618360079eff5471cad5f58fbd108b5a0c6948ca2bf0a1"
+    },
+    "beatrice_model_1": {
+      "name": "Beatrice 2 公式モデル 1（つくよみちゃん・刻鳴時雨・OLUNE）",
+      "version": "2.0.0-rc.0",
+      "file_pattern": "beatrice_2.0.0-rc.0_official_model_1*.zip",
+      "url": "https://storage.prj-beatrice.com/beatrice_2.0.0-rc.0_official_model_1.zip",
+      "page": "https://prj-beatrice.com/2.0.0-rc.0-official-model-1-terms.html",
+      "license": "独自（規約への同意が前提。.bin と画像は再頒布不可）",
+      "acquire": "ブラウザで page の規約を読み、同意したうえで同じページのリンクから取得する",
+      "extract_to": "runtime/beatrice/models",
+      "sha256": "046273adf7403143c64fabe1f84645f3a0349fdaf6aad23055a0dda23a2efe8f"
+    },
+    "vbcable": {
+      "name": "VB-CABLE Virtual Audio Device",
+      "version": "Driver Pack46",
+      "file_pattern": "VBCABLE_Driver_Pack46.zip",
+      "url": "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack46.zip",
+      "page": "https://vb-audio.com/Cable/",
+      "license": "寄付ウェア（Donationware）。https://vb-audio.com/Services/licensing.htm",
+      "acquire": "tools/install_audio_tools.ps1 が取得する",
+      "extract_to": "runtime/downloads/vbcable",
+      "sha256": "bc44e8974191a5a2427d6c979e2dab08dbb09925f3f435dfa2f0ba3e45b6eb90"
+    },
+    "obs": {
+      "name": "OBS Studio",
+      "version": "33.0.1",
+      "file_pattern": "OBS-Studio-33.0.1-Windows-x64-Installer.exe",
+      "url": "https://github.com/obsproject/obs-studio/releases/download/33.0.1/OBS-Studio-33.0.1-Windows-x64-Installer.exe",
+      "page": "https://github.com/obsproject/obs-studio/releases/tag/33.0.1",
+      "license": "GPLv2",
+      "acquire": "tools/install_audio_tools.ps1 が取得する",
+      "extract_to": null,
+      "sha256": "37ecde4d9a28e8aeeb07623c8469b5d558eb264e02ccf435bb859891c401758b",
+      "sha256_source": "GitHub のリリース情報の digest（2026-11-17 に gh api で取得）"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+# 実行環境と取得物（Beatrice の VST・モデルは再頒布不可）
+.venv/
+runtime/
+Downloads/
+__pycache__/
+*.pyc
+
+# 実行時のデータ・生成物・録画
+data/
+out/
+recordings/
+
+# Claude Code の作業用（コミットしない）
+tools/claude_progress.ps1
+tools/claude_progress.json
+tools/claude_progress_history.jsonl
+
+# ナレッジベースの原本層と生成物層。毎日の差分がコミットに載るのを防ぐ。
+# 10-silver/ と 00-system/ はコミット対象。
+knowledge/20-bronze/
+knowledge/30-gold/

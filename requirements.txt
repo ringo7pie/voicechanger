@@ -1,0 +1,8 @@
+# VoiceChanger エンジンの依存（Python 3.14、.venv に入れる）
+# 版は 2026-11-17 に PyPI で cp314 の win_amd64 wheel があることを確認して固定した。
+numpy==2.5.5
+pedalboard==0.9.26
+sounddevice==0.5.6
+obsws-python==1.8.1
+# GUI（voicechanger.gui）。LGPL。cp310-abi3 の win_amd64 wheel が Python 3.14 に入る（2026-11-17 に PyPI で確認）
+PySide6-Essentials==6.12.0
