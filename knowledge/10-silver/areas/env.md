@@ -34,5 +34,15 @@
   ウィンドウを閉じる要求（CloseMainWindow）は子の本体に送る。中継役を強制終了すると本体も後始末なしに止まり、`control.json` が残る（PID の確認で無視される）。
 - 試験でエンジンや GUI を動かすときは `run --settings-file` を使い、本物の `data\settings.json` を書き換えない
   （GUI の `--self-test` は自動で `data\self_test_settings.json` を使う）。2026-11-17 に自己試験が本物の保存値を書き換えたので戻した。
+- OBS 33.0.1 を websocket で設定した後に CloseMainWindow で閉じて起動し直すと、「OBS Studio のクラッシュが検出されました」が出て
+  （`--disable-shutdown-check` を付けても出た）、シーンコレクションの入力と出力の設定（Output.Mode・RecFormat2・RecTracks・RecEncoder）が
+  保存されていなかった（トラック名・映像・録画先は残った）。設定は動いている OBS のまま、プロファイルとシーンコレクションを一度別のものへ
+  切り替えて戻して反映・保存する（`voicechanger\obs_setup.py` の `reactivate`、`tools\setup_obs.ps1`）。
+  この確認画面ではユーザーに「通常モード」を選んでもらう（セーフモードでは websocket が動かない）。
+- ゲームキャプチャがゲームを捕まえている間は `tools\setup_obs.ps1`（reactivate で付け直しと映像の作り直しが起きる）を流さない。ゲームを閉じてから流す。
+  2026-11-18 11:09:15 に Demon of the Crown（D3D12・Vulkan・GL を hook 中）を捕まえたまま流した直後に、ゲームが「応答なし」で固まった
+  （ゲームの 10 秒おきの問い合わせが 11:09:09 で途切れた。因果は推測）。コードでの防止はユーザーが不要とした。
+- PowerShell 7 の `Start-Process -ArgumentList` に配列を渡すと、空白を含む要素が引用符なしでつながれて引数が分断される。
+  空白を含む要素は自分で引用符で囲んだ 1 本の文字列にして渡す。
 - PySide6 6.12.0（cp310-abi3 の wheel）は Python 3.14.7 で動き、既定のスタイルで Windows のダーク／ライトに追従する。
 - Beatrice と Rubber Band の詳細（状態の形式・遅延・ピッチの式）を触るときは `knowledge/10-silver/resources/voice-engines.md` を Read する。

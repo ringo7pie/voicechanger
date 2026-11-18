@@ -112,6 +112,8 @@ class EntryPointTest(unittest.TestCase):
         self.assertFalse(CONTROL_PATH.exists(), "失敗したら control.json を残さない")
 
     def test_dead_parent_is_refused(self) -> None:
+        if is_running() is not None:
+            self.skipTest("エンジンが起動中")
         child = subprocess.Popen([sys.executable, "-c", "pass"])
         child.wait()
         completed = self.run_module("run", "--no-obs", "--parent-pid", str(child.pid))

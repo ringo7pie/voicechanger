@@ -20,7 +20,8 @@ pwsh -NoProfile -File .\tools\check_audio_devices.ps1 -CompareBaseline .\data\de
 param(
     [string]$SaveBaseline = '',
     [string]$CompareBaseline = '',
-    [switch]$ExpectCable
+    [switch]$ExpectCable,
+    [switch]$Json
 )
 
 Set-StrictMode -Version Latest
@@ -119,14 +120,22 @@ if (-not ('VoiceChangerAudio.AudioEndpoints' -as [type])) {
 
 $roleNames = [ordered]@{ console = 0; multimedia = 1; communications = 2 }
 $defaults = [ordered]@{}
+$defaultIds = [ordered]@{}
 foreach ($flowName in @('render', 'capture')) {
     $flowIndex = if ($flowName -eq 'render') { 0 } else { 1 }
     foreach ($roleEntry in $roleNames.GetEnumerator()) {
         $endpoint = [VoiceChangerAudio.AudioEndpoints]::GetDefault($flowIndex, $roleEntry.Value)
         $defaults["$flowName.$($roleEntry.Key)"] = if ($null -eq $endpoint) { '' } else { $endpoint.Name }
+        $defaultIds["$flowName.$($roleEntry.Key)"] = if ($null -eq $endpoint) { '' } else { $endpoint.Id }
     }
 }
 $activeEndpoints = @([VoiceChangerAudio.AudioEndpoints]::ListActive())
+
+if ($Json) {
+    # OBS の device_id（IMMDevice::GetId）と同じ書式の ID を出す。同じ名前の機器が複数あるとき、名前では選べないため
+    [ordered]@{ defaults = $defaults; default_ids = $defaultIds; endpoints = @($activeEndpoints | ForEach-Object { [ordered]@{ flow = $_.Flow; name = $_.Name; id = $_.Id } }) } | ConvertTo-Json -Depth 4 -Compress
+    exit 0
+}
 
 Write-Output '== 有効なエンドポイント'
 foreach ($endpoint in $activeEndpoints) {

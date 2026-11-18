@@ -8,6 +8,17 @@
 音声の経路と、素の声を録画に漏らさないための規則。
 
 - 生のマイクを OBS に登録しない。OBS へ入る声は CABLE Output だけにする。
+- OBS の「VoiceChanger」プロファイルの音声入力は 2 つだけ: 声＝`wasapi_input_capture`（CABLE Output を device_id で明示、トラック 1・3、
+  同期補正 -110ms は推定値）、ゲーム音＝`game_capture` の `capture_audio`（ゲームのプロセスの音だけ。聞いている機器に依らない。トラック 1・2）。
+  デスクトップ音声は置かない（2026-11-18 にユーザーが選んだ）。2026-11-18 の試し録りで、トラック 1・3 に声（最大 -1.9dB）、
+  トラック 2 は無音（声が混ざっていない）を確かめた。
+- VP32AQ (NVIDIA High Definition Audio) はモニターの音声で、Windows から見えなくなることがある（2026-11-18 に一覧から消え、
+  既定の再生が CABLE Input になっていた。推測: モニターの電源や省電力）。ユーザーはゲームの音をヘッドホンで聞くので、
+  既定の再生はヘッドホン (High Definition Audio Device) にする（2026-11-18 にユーザーが選び、3 役割とも変えた。録音の既定は CABLE Output ×3）。
+- 既定の再生がスピーカーだと、ゲームの音をマイクが拾い、VoiceChanger が変換して声のトラックに入る（2026-11-18 の録画でキャラの声が変換されていた）。
+- Demon of the Crown（`E:\DemonCrown-Alpha\DemonCrown.exe`）は窓表示（1844x1041）なので、ゲームキャプチャの「全画面のゲーム」では捕まらない
+  （2026-11-18: 候補が explorer.exe だけで、ゲーム音のトラックが -91dB の無音）。「特定のウィンドウ」＝`Demon of the Crown:Engine:DemonCrown.exe`
+  で捕まり、音は OBS がプロセス単位のループバックで取る。`setup_obs.ps1` は既存のゲームキャプチャの捕まえ方を上書きしない。
 - OBS の音声入力（`wasapi_input_capture` / `wasapi_output_capture`）は `device_id` の既定値が `"default"` で、
   Windows の既定デバイスを追う（OBS 33.0.1 の `plugins/win-wasapi/win-wasapi.cpp`）。
   VB-CABLE の導入で既定デバイスが変わると声とゲーム音が互いのトラックに混ざるので、`device_id` は必ず明示する。
