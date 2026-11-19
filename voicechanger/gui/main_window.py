@@ -8,9 +8,10 @@ from typing import Any, Callable
 
 from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QFont
-from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
-                               QLabel, QMainWindow, QPushButton, QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QGridLayout, QGroupBox,
+                               QHBoxLayout, QLabel, QMainWindow, QPushButton, QStackedWidget, QVBoxLayout, QWidget)
 
+from .. import addons
 from ..config import SELF_PITCH_PATH, Settings
 from . import view_state
 from .engine_link import ENGINE_LOG, ERROR, RUNNING, STARTING, STOPPED, STOPPING, EngineLink, list_devices_subprocess
@@ -30,6 +31,7 @@ class LinkBridge(QObject):
     commandFinished = Signal(str, object, object)
     devicesLoaded = Signal(object)
     devicesFailed = Signal(str)
+    addonFinished = Signal(bool, str)
 
 
 class MainWindow(QMainWindow):
@@ -52,6 +54,7 @@ class MainWindow(QMainWindow):
         self._devices_ready = False
         self._last_panel = "dsp"
         self._error_text = ""
+        self._notice_text = ""
         self._default_output: str | None = None
         self._voices_signature: tuple = ()
         factory = link_factory or EngineLink
@@ -62,6 +65,8 @@ class MainWindow(QMainWindow):
         self.bridge.commandFinished.connect(self._on_command_finished)
         self.bridge.devicesLoaded.connect(self._on_devices_loaded)
         self.bridge.devicesFailed.connect(self._on_devices_failed)
+        self.bridge.addonFinished.connect(self._on_addon_finished)
+        self._addon_busy = False
         self._build()
         self._load_saved_values()
         self._refresh_view()
@@ -125,6 +130,8 @@ class MainWindow(QMainWindow):
         self.banners = BannerArea()
         root.addWidget(self.banners)
 
+        root.addWidget(self._build_addon_box())
+
         mode_box = QGroupBox("モード")
         mode_layout = QHBoxLayout(mode_box)
         self.mode_group = QButtonGroup(self)
@@ -184,6 +191,109 @@ class MainWindow(QMainWindow):
         root.addStretch(1)
         self.setCentralWidget(central)
         self.resize(640, 820)
+
+    def _build_addon_box(self) -> QWidget:
+        """インストーラーに入れられない部品（Beatrice・pylibrb）を入れる欄。全部そろったら隠す。"""
+        self.addon_box = QGroupBox("追加の部品")
+        layout = QGridLayout(self.addon_box)
+        self.beatrice_status_label = QLabel()
+        self.beatrice_status_label.setWordWrap(True)
+        self.beatrice_status_label.setOpenExternalLinks(True)
+        self.beatrice_button = QPushButton("Beatrice の zip を選ぶ…")
+        self.beatrice_button.setToolTip("公式ページから取得した VST とモデルの zip（2 つ。まとめて選べる）")
+        self.beatrice_button.clicked.connect(self._on_beatrice_clicked)
+        self.pylibrb_status_label = QLabel()
+        self.pylibrb_status_label.setWordWrap(True)
+        self.pylibrb_status_label.setOpenExternalLinks(True)
+        self.pylibrb_button = QPushButton("部品を取得")
+        self.pylibrb_button.setToolTip(f"PyPI から {addons.PYLIBRB_WHEEL['filename']} を取得し、SHA-256 を照合して入れる")
+        self.pylibrb_button.clicked.connect(self._on_pylibrb_clicked)
+        layout.addWidget(self.beatrice_status_label, 0, 0)
+        layout.addWidget(self.beatrice_button, 0, 1)
+        layout.addWidget(self.pylibrb_status_label, 1, 0)
+        layout.addWidget(self.pylibrb_button, 1, 1)
+        layout.setColumnStretch(0, 1)
+        self._refresh_addons()
+        return self.addon_box
+
+    def _refresh_addons(self) -> None:
+        try:
+            present = addons.status(self._settings_factory())
+        except Exception as error:  # noqa: BLE001 - 表示できないだけで止めない
+            log.warning("部品の状態を読めません: %s", error)
+            self.addon_box.setVisible(False)
+            return
+        manifest_pages = ("https://prj-beatrice.com/", "https://prj-beatrice.com/2.0.0-rc.0-official-model-1-terms.html")
+        beatrice_ok = present["beatrice_vst"] and present["beatrice_model"]
+        missing = [name for name, ok in (("VST", present["beatrice_vst"]), ("モデル", present["beatrice_model"])) if not ok]
+        self.beatrice_status_label.setText(
+            "AI（Beatrice 2）: 入っています" if beatrice_ok else
+            f"AI（Beatrice 2）: {'・'.join(missing)} がありません。<a href=\"{manifest_pages[0]}\">VST</a> と "
+            f"<a href=\"{manifest_pages[1]}\">公式モデル 1</a>（規約に同意して取得）の zip を選んでください")
+        self.pylibrb_status_label.setText(
+            "ピッチ・フォルマント（pylibrb）: 入っています" if present["pylibrb"] else
+            f"ピッチ・フォルマント: 部品（<a href=\"{addons.PYLIBRB_WHEEL['page']}\">pylibrb</a>、GPL-2.0）がありません。"
+            "インターネットから取得します")
+        self.beatrice_button.setVisible(not beatrice_ok)
+        self.pylibrb_button.setVisible(not present["pylibrb"])
+        for button in (self.beatrice_button, self.pylibrb_button):
+            button.setEnabled(not self._addon_busy)
+        self.addon_box.setVisible(not (beatrice_ok and present["pylibrb"]))
+
+    def _run_addon(self, label: str, action: Callable[[], str]) -> None:
+        self._addon_busy = True
+        self._refresh_addons()
+        self.state_label.setText(label)
+
+        def worker() -> None:
+            try:
+                self.bridge.addonFinished.emit(True, action())
+            except Exception as error:  # noqa: BLE001 - 利用者に見せる
+                log.exception("部品を入れられませんでした")
+                self.bridge.addonFinished.emit(False, str(error))
+
+        threading.Thread(target=worker, name="addon", daemon=True).start()
+
+    def _on_beatrice_clicked(self) -> None:
+        paths, _filter = QFileDialog.getOpenFileNames(self, "Beatrice の zip を選ぶ", "", "zip (*.zip)")
+        if not paths:
+            return
+        from pathlib import Path
+
+        def action() -> str:
+            installed = [addons.install_beatrice_zip(Path(path)) for path in paths]
+            return "入れました: " + "、".join(installed)
+
+        self._run_addon("Beatrice を展開しています…", action)
+
+    def _on_pylibrb_clicked(self) -> None:
+        self._run_addon("pylibrb を取得しています…", lambda: "入れました: " + addons.install_pylibrb())
+
+    def _on_addon_finished(self, ok: bool, message: str) -> None:
+        self._addon_busy = False
+        self._refresh_addons()
+        self._refresh_view()
+        if not ok:
+            self._show_error(message)
+            return
+        self._show_notice(message)
+        if self._state in (RUNNING, STARTING) and getattr(self.link, "owned", False):
+            # エンジンは起動時に部品を読むので、起動し直す
+            self._restart_after_stop = True
+            self.link.stop()
+        elif self._state in (STOPPED, ERROR):
+            self._load_saved_values()
+
+    def _show_notice(self, text: str) -> None:
+        self._notice_text = text
+        self._refresh_view()
+
+        def clear() -> None:
+            if self._notice_text == text:
+                self._notice_text = ""
+                self._refresh_view()
+
+        QTimer.singleShot(8000, clear)
 
     def _build_dsp_page(self) -> QWidget:
         page = QGroupBox("ピッチ・フォルマント")
@@ -503,6 +613,8 @@ class MainWindow(QMainWindow):
         items: list[tuple[str, str]] = []
         if self._error_text:
             items.append(("error", self._error_text))
+        if self._notice_text:
+            items.append(("info", self._notice_text))
         render_warning = view_state.default_render_warning(self._default_output)
         if render_warning:
             items.append(("danger", render_warning))

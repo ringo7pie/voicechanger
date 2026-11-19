@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .config import REPO_ROOT
+from .paths import APP_DATA
 from .obs_client import ObsConnection, load_connection
 
 PROFILE = "VoiceChanger"
@@ -27,7 +27,7 @@ COLLECTION = "VoiceChanger"
 VOICE_INPUT = "声（VoiceChanger）"
 GAME_INPUT = "ゲームキャプチャ"
 DISPLAY_INPUT = "画面キャプチャ"
-RECORD_DIR = REPO_ROOT / "recordings"
+RECORD_DIR = APP_DATA / "recordings"
 # VoiceChanger の声は、全モードでそろえた遅延 78ms ＋ 出力の溜め 30ms ほど遅れる（推定。実測で直す）
 DEFAULT_VOICE_SYNC_OFFSET_MS = -110
 TRACKS = {VOICE_INPUT: (1, 3), GAME_INPUT: (1, 2)}

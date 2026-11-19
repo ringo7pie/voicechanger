@@ -46,7 +46,7 @@
 ## Rubber Band（pylibrb 0.1.2。Python 3.14 では cp312-abi3 の wheel で動く）
 
 - pylibrb 0.1.2 のメタデータの License は「GPLv2」で、同梱の LICENSE は GPLv2 の本文だけ。「or later」かは確認できていない
-  （2026-11-19）。リポジトリ（GPL-3.0-or-later）には同梱せず、任意の依存のままにする。
+  （2026-11-19）。リポジトリ（GPL-3.0-or-later）にもインストーラーにも同梱しない（扱いは `areas/installer.md`）。
 
 - `formant_scale` は R3（`ENGINE_FINER`）と `FORMANT_PRESERVED` の組み合わせのときだけ効く。
   意味は「ピッチで動いた後の包絡に掛ける倍率」で、0 は自動（= 1 / pitch_scale）。

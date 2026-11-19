@@ -10,9 +10,10 @@ from typing import Any
 
 import numpy as np
 
-from .config import REPO_ROOT, Settings, load_or_measure_self_pitch
+from .config import Settings, load_or_measure_self_pitch
+from .paths import APP_DATA
 
-LISTEN_DIR = REPO_ROOT / "out" / "listen"
+LISTEN_DIR = APP_DATA / "out" / "listen"
 
 
 def read_mono(path: Path, sample_rate: int) -> np.ndarray:

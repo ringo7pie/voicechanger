@@ -13,9 +13,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "voicechanger.json"
-DATA_DIR = REPO_ROOT / "data"
+from .paths import APP_DATA, CONFIG_DIR, DATA_DIR, REPO_ROOT
+
+DEFAULT_CONFIG_PATH = CONFIG_DIR / "voicechanger.json"
 SETTINGS_PATH = DATA_DIR / "settings.json"
 SELF_PITCH_PATH = DATA_DIR / "self_pitch.json"
 
@@ -55,8 +55,9 @@ def merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
 
 
 def resolve_repo_path(value: str) -> Path:
+    """設定の相対パス（runtime/... など）を、書き込む場所の根（ソースはリポジトリ）から解決する。"""
     path = Path(value)
-    return path if path.is_absolute() else (REPO_ROOT / path)
+    return path if path.is_absolute() else (APP_DATA / path)
 
 
 class Settings:
@@ -114,7 +115,8 @@ class Settings:
 
     @property
     def self_voice_dir(self) -> Path | None:
-        value = self.config.get("self_voice_dir")
+        """自分の声の録音のフォルダ。設定の self_voice_dir、無ければ環境変数 VOICECHANGER_SELF_VOICE_DIR。"""
+        value = self.config.get("self_voice_dir") or os.environ.get("VOICECHANGER_SELF_VOICE_DIR")
         return Path(value) if value else None
 
     @property

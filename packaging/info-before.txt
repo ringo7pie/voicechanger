@@ -1,0 +1,19 @@
+﻿VoiceChanger — ゲーム実況の録画用に、マイクの声をリアルタイムで変えるボイスチェンジャー
+https://github.com/ringo7pie/voicechanger
+
+■ 入るもの
+・VoiceChanger 本体（GUI とエンジン。Python は不要）
+・VB-CABLE（仮想マイク CABLE Input / CABLE Output）… 選んだときだけ。全ユーザー向けのインストールで、まだ入っていないときに選べます。
+  VB-CABLE is a donationware, all participations are welcome.  www.vb-cable.com
+  VB-Audio Software の製品を、そのまま（AS IS）同梱しています。入れた後は PC の再起動が必要です。
+  VB-CABLE を入れると、Windows の既定の再生デバイスが CABLE Input に変わることがあります。
+  サウンドの設定で、既定の再生をヘッドホンなどに戻してください（VoiceChanger の画面にも警告が出ます）。
+
+■ 入らないもの（初回に VoiceChanger の画面の「追加の部品」から入れます）
+・AI モード: Beatrice 2 の公式 VST と公式モデル 1。規約で再頒布できないので、公式ページ（https://prj-beatrice.com/）から
+  ブラウザで zip を取得し、「Beatrice の zip を選ぶ…」で読み込みます。モデルは規約に同意してから取得してください。
+・ピッチ・フォルマント: pylibrb（GPL-2.0）。「部品を取得」で PyPI から取得します（インターネット接続が必要）。
+・録画: OBS Studio（https://obsproject.com/）。マイクに「CABLE Output」を選びます。
+
+■ データの置き場所
+設定とログは %LOCALAPPDATA%\VoiceChanger に保存します。アンインストールしても消えません。

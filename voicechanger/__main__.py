@@ -6,6 +6,7 @@
   render      WAV をオフラインで変換する（聴き比べ・試験用）
   listen-page 自分の声の録音を各プリセット・各声で変換した聴き比べページを作る
   self-pitch  自分の声の高さ（Beatrice の Average Source Pitch）を録音から測って保存する
+  addons      追加の部品（Beatrice の zip、pylibrb）を入れる。GUI の「追加の部品」と同じ
 """
 from __future__ import annotations
 
@@ -38,8 +39,9 @@ def configure_logging(verbose: bool = False) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     handlers: list[logging.Handler] = [
         logging.handlers.RotatingFileHandler(LOG_DIR / "engine.log", maxBytes=1_000_000, backupCount=3, encoding="utf-8"),
-        logging.StreamHandler(sys.stderr),
     ]
+    if sys.stderr is not None:  # 窓アプリとして凍結した実行ファイルでは None
+        handlers.append(logging.StreamHandler(sys.stderr))
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO, handlers=handlers,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -144,8 +146,16 @@ def command_run(arguments: argparse.Namespace) -> int:
         def extra_status() -> dict:
             return {"backend": backend.describe(), "obs": obs_watcher.describe() if obs_watcher else None}
 
-        server = ControlServer(engine, settings.control["host"], arguments.port or int(settings.control["port"]),
-                               extra_status=extra_status, on_shutdown=stop_event.set)
+        port = arguments.port or int(settings.control["port"])
+        try:
+            server = ControlServer(engine, settings.control["host"], port, extra_status=extra_status,
+                                   on_shutdown=stop_event.set)
+        except OSError as error:
+            # 別のプロセス（データの置き場所が違うソース版とインストーラー版など）が使っているときは、空いているポートにする。
+            # GUI と Run.ps1 は control.json の port / url を読むので、どのポートでもつながる
+            log.warning("操作画面のポート %s を使えません（%s）。空いているポートを使います", port, error)
+            server = ControlServer(engine, settings.control["host"], 0, extra_status=extra_status,
+                                   on_shutdown=stop_event.set)
         server.start()
         backend.start()
         # parent_pid: GUI が「自分が起動したエンジンか」を見分けるのに使う。Windows の venv の python.exe は
@@ -250,7 +260,12 @@ def command_devices(arguments: argparse.Namespace) -> int:
                     "inputs": [device.name for device in devices if device.max_input_channels > 0],
                     "outputs": [device.name for device in devices if device.max_output_channels > 0],
                     "default_input": defaults["input"], "default_output": defaults["output"]}
-        print(json.dumps(document, ensure_ascii=False), flush=True)
+        line = json.dumps(document, ensure_ascii=False)
+        if arguments.json_out is not None:
+            # 窓アプリとして凍結した実行ファイルは stdout を持たないので、GUI はファイルで受け取る
+            save_json_atomic(arguments.json_out, document)
+        else:
+            print(line, flush=True)
         return EXIT_OK
     for device in devices:
         emit(f"[{device.index:2d}] in={device.max_input_channels} out={device.max_output_channels} "
@@ -324,8 +339,23 @@ def command_self_pitch(arguments: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def command_addons(arguments: argparse.Namespace) -> int:
+    from . import addons
+
+    try:
+        for zip_path in arguments.beatrice_zip:
+            emit(f"ADDON_INSTALLED {addons.install_beatrice_zip(zip_path)}")
+        if arguments.pylibrb:
+            emit(f"ADDON_INSTALLED {addons.install_pylibrb()}")
+    except addons.AddonError as error:
+        emit(f"ADDON_FAILED {error}")
+        return EXIT_ERROR
+    emit("ADDON_STATUS " + json.dumps(addons.status(Settings(settings_path=None)), ensure_ascii=False))
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="python -m voicechanger", description=__doc__,
+    parser = argparse.ArgumentParser(prog="voicechanger", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -350,6 +380,7 @@ def build_parser() -> argparse.ArgumentParser:
     devices = subparsers.add_parser("devices", help="デバイス一覧")
     devices.add_argument("--host-api", default="Windows WASAPI")
     devices.add_argument("--json", action="store_true", help="入力と出力の名前を JSON 1 行で出す（GUI 用）")
+    devices.add_argument("--json-out", type=Path, default=None, help="--json の内容を stdout ではなくこのファイルに書く")
     devices.set_defaults(handler=command_devices)
 
     render = subparsers.add_parser("render", help="WAV をオフラインで変換する")
@@ -374,12 +405,18 @@ def build_parser() -> argparse.ArgumentParser:
     self_pitch = subparsers.add_parser("self-pitch", help="自分の声の高さを測る")
     self_pitch.add_argument("--force", action="store_true", help="保存済みの値を捨てて測り直す")
     self_pitch.set_defaults(handler=command_self_pitch)
+
+    addon = subparsers.add_parser("addons", help="追加の部品（Beatrice の zip、pylibrb）を入れる・状態を出す")
+    addon.add_argument("--beatrice-zip", type=Path, action="append", default=[], help="公式の VST かモデルの zip（複数可）")
+    addon.add_argument("--pylibrb", action="store_true", help="PyPI から pylibrb を取得して入れる")
+    addon.set_defaults(handler=command_addons)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     arguments = build_parser().parse_args(argv)
     return int(arguments.handler(arguments))
 

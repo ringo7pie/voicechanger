@@ -39,6 +39,8 @@
   モードを切り替えた直後は前のモードの値が残る（0dB から -90dB まで約 0.6 秒）。無音の判定は切り替えの 1 秒後から測る
   （2026-11-19 に自己試験の mute 段がこれで -61〜-89dB を拾って不合格になっていたのを直した）。
 - 公開先と公開の決まりは `knowledge/10-silver/areas/publishing.md` を Read する。
+- インストーラー・凍結版・追加の部品・データの置き場所を触るとき、自分の声の録音を使う試験を流すときは
+  `knowledge/10-silver/areas/installer.md` を Read する。
 - OBS 33.0.1 を websocket で設定した後に CloseMainWindow で閉じて起動し直すと、「OBS Studio のクラッシュが検出されました」が出て
   （`--disable-shutdown-check` を付けても出た）、シーンコレクションの入力と出力の設定（Output.Mode・RecFormat2・RecTracks・RecEncoder）が
   保存されていなかった（トラック名・映像・録画先は残った）。設定は動いている OBS のまま、プロファイルとシーンコレクションを一度別のものへ

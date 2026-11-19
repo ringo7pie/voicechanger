@@ -1,0 +1,27 @@
+VoiceChanger — third-party notices / 第三者の部品
+
+VoiceChanger itself is licensed under GPL-3.0-or-later (see LICENSE).
+Source code: https://github.com/ringo7pie/voicechanger
+
+Bundled in this installer / このインストーラーに入っているもの
+----------------------------------------------------------------
+- Python 3.14 runtime (PSF License)                     https://www.python.org/
+- PySide6 / Qt 6 (LGPL-3.0)                             https://www.qt.io/qt-for-python
+  Qt and PySide6 are dynamically linked DLLs in the installation folder and can be replaced.
+- pedalboard (GPL-3.0, includes JUCE)                   https://github.com/spotify/pedalboard
+- obsws-python (GPL-3.0-only)                           https://github.com/aatikturk/obsws-python
+- NumPy (BSD-3-Clause)                                  https://numpy.org/
+- python-sounddevice (MIT) with PortAudio (MIT)         https://github.com/spatialaudio/python-sounddevice
+- PyInstaller bootloader (GPL-2.0 with bootloader exception)  https://pyinstaller.org/
+
+- VB-CABLE Virtual Audio Device (Driver Pack46), distributed AS IS
+  VB-CABLE is a donationware, all participations are welcome.
+  www.vb-cable.com  (licensing: https://vb-audio.com/Services/licensing.htm)
+
+NOT bundled — obtained by the user / 同梱せず、利用者が取得するもの
+----------------------------------------------------------------
+- Beatrice 2 official VST and official model 1 (redistribution prohibited by their terms)
+  https://prj-beatrice.com/
+- pylibrb 0.1.2 (GPL-2.0) with Rubber Band Library (GPL-2.0-or-later)
+  Downloaded from PyPI by the app on request: https://pypi.org/project/pylibrb/0.1.2/
+- OBS Studio (GPL-2.0)  https://obsproject.com/

@@ -13,6 +13,7 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..__main__ import CONTROL_PATH, LOG_DIR, pid_alive
-from ..config import REPO_ROOT
+from ..paths import APP_DATA, FROZEN, REPO_ROOT
 from ..control_server import TOKEN_HEADER
 
 log = logging.getLogger("voicechanger.gui.link")
@@ -191,18 +192,36 @@ def last_engine_message(log_path: Path = ENGINE_LOG, stderr_path: Path = ENGINE_
     return message
 
 
-def engine_command(python_exe: Path, parent_pid: int, extra_arguments: list[str] | None = None) -> list[str]:
-    return [str(python_exe), "-m", "voicechanger", "run", "--parent-pid", str(parent_pid), *(extra_arguments or [])]
+def engine_prefix(python_exe: Path = VENV_PYTHON, frozen: bool = FROZEN) -> list[str]:
+    """エンジンの CLI を呼ぶコマンドの頭。凍結した実行ファイルは自分自身を engine 付きで呼ぶ（voicechanger/app_entry.py）。"""
+    if frozen:
+        return [sys.executable, "engine"]
+    return [str(python_exe), "-m", "voicechanger"]
+
+
+def engine_command(python_exe: Path, parent_pid: int, extra_arguments: list[str] | None = None,
+                   frozen: bool = FROZEN) -> list[str]:
+    return [*engine_prefix(python_exe, frozen), "run", "--parent-pid", str(parent_pid), *(extra_arguments or [])]
 
 
 def list_devices_subprocess(python_exe: Path = VENV_PYTHON, timeout: float = 30.0) -> dict:
-    """別プロセスでデバイス一覧を取る（PortAudio の一覧は初期化した時点のものなので、毎回新しく取るため）。"""
-    completed = subprocess.run([str(python_exe), "-m", "voicechanger", "devices", "--json"], cwd=REPO_ROOT,
-                               capture_output=True, text=True, encoding="utf-8", timeout=timeout,
-                               creationflags=CREATE_NO_WINDOW if sys.platform == "win32" else 0)
-    if completed.returncode != 0:
-        raise RuntimeError(f"デバイス一覧を取れません: {completed.stderr.strip() or completed.stdout.strip()}")
-    return json.loads(completed.stdout.strip().splitlines()[-1])
+    """別プロセスでデバイス一覧を取る（PortAudio の一覧は初期化した時点のものなので、毎回新しく取るため）。
+
+    結果は一時ファイルで受け取る（窓アプリとして凍結した実行ファイルは stdout を持たない）。
+    """
+    handle, temporary = tempfile.mkstemp(prefix="voicechanger-devices-", suffix=".json")
+    os.close(handle)
+    result_path = Path(temporary)
+    try:
+        completed = subprocess.run([*engine_prefix(python_exe), "devices", "--json", "--json-out", str(result_path)],
+                                   cwd=APP_DATA, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                   timeout=timeout, creationflags=CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+        if completed.returncode != 0:
+            detail = (completed.stderr or "").strip() or (completed.stdout or "").strip()
+            raise RuntimeError(f"デバイス一覧を取れません: {detail or f'終了コード {completed.returncode}'}")
+        return json.loads(result_path.read_text(encoding="utf-8"))
+    finally:
+        result_path.unlink(missing_ok=True)
 
 
 class EngineLink:
@@ -275,7 +294,7 @@ class EngineLink:
         try:
             stderr_handle = open(ENGINE_STDERR_LOG, "w", encoding="utf-8")
             self._process = subprocess.Popen(
-                engine_command(self._python_exe, os.getpid(), extra_arguments), cwd=REPO_ROOT,
+                engine_command(self._python_exe, os.getpid(), extra_arguments), cwd=APP_DATA,
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=stderr_handle,
                 creationflags=CREATE_NO_WINDOW if sys.platform == "win32" else 0)
             stderr_handle.close()

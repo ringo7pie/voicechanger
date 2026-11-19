@@ -23,6 +23,7 @@
 > The design goal is that your *unprocessed* voice never reaches the recording: on any processing error the
 > engine outputs silence, the "raw voice" check mode is never saved and is refused while OBS is recording,
 > and the bundled OBS setup registers only the converted voice and the game's own audio.
+> A Windows installer (no Python needed) is attached to each [release](https://github.com/ringo7pie/voicechanger/releases/latest).
 > The UI and docs are in Japanese.
 
 ---
@@ -64,15 +65,33 @@ flowchart LR
 | 無音 | 何も出さない |
 | 素の声（確認用） | 変換しない声。保存されず、60 秒で無音に戻り、OBS の録画中は使えない |
 
+## 📥 インストーラーで入れる（おすすめ）
+
+1. [Releases](https://github.com/ringo7pie/voicechanger/releases/latest) から `VoiceChanger-Setup-<版>.exe` をダウンロードして実行する。Python は要りません。
+   - 署名していないので、Windows の SmartScreen が「PC を保護しました」と出したら「詳細情報」→「実行」を押す。
+   - 「VB-CABLE を入れる」を選ぶと、仮想マイク（CABLE Input / CABLE Output）も入る（全ユーザー向けのインストールで、まだ入っていないとき）。
+     VB-CABLE のセットアップ画面で「Install Driver」を押し、終わったら PC を再起動する。
+2. VoiceChanger を開くと「追加の部品」欄が出るので、使うモードの部品を入れる（入れると欄は消える）。
+   - **ピッチ・フォルマント**: 「部品を取得」を押す（PyPI から pylibrb を取得し、SHA-256 を照合して入れる）。
+   - **AI（Beatrice）**: [Beatrice 2 の公式ページ](https://prj-beatrice.com/)から VST の zip と、規約に同意して公式モデル 1 の zip を
+     ブラウザで取得し、「Beatrice の zip を選ぶ…」で 2 つとも選ぶ（規約で再頒布できないので、インストーラーには入れていない）。
+3. 録画には [OBS Studio](https://obsproject.com/) を入れ、マイクに「CABLE Output」を選ぶ（下の「録画」）。
+
+<img src="docs/images/gui-addons.png" alt="追加の部品の欄" width="480">
+
+- 設定・ログ・追加の部品は `%LOCALAPPDATA%\VoiceChanger` に保存する。アンインストールしても消えない（要らなければ手で消す）。
+- インストーラー版のエンジンは `VoiceChanger.exe engine <コマンド>` で呼べる（例: `engine addons --beatrice-zip <zip>`、`engine devices`）。
+- OBS の録画設定の自動作成（`tools\setup_obs.ps1`）はソース版だけの機能。
+
 ## 💻 動作環境
 
-- Windows 11
-- Python 3.14（リポジトリの `.venv` に依存を入れる）
-- [VB-CABLE](https://vb-audio.com/Cable/)（仮想マイク。録画・配信に使うとき）
+- Windows 10 / 11（64 bit）
+- [VB-CABLE](https://vb-audio.com/Cable/)（仮想マイク。録画・配信に使うとき。インストーラーから入れられる）
 - [OBS Studio](https://obsproject.com/) 33（録画するとき）
-- AI モードを使うとき: [Beatrice 2](https://prj-beatrice.com/) の公式 VST とモデル（ブラウザで取得する。下の「導入」）
+- AI モードを使うとき: [Beatrice 2](https://prj-beatrice.com/) の公式 VST とモデル（ブラウザで取得する）
+- ソースから動かすとき: Python 3.14（リポジトリの `.venv` に依存を入れる。下の「ソースから導入」）
 
-## 📦 導入
+## 📦 ソースから導入
 
 | 段階 | コマンド | 内容 |
 |---|---|---|
@@ -152,8 +171,20 @@ GUI は、`Run.ps1` で起動済みのエンジンにも接続できる（その
 | `voicechanger/` | エンジン（入出力・変換・操作 API） |
 | `voicechanger/gui/` | GUI（PySide6）。エンジンは別プロセスで起動し、操作 API で操作する |
 | `config/` | 既定の設定、取得物の URL・版・SHA-256 |
-| `tools/` | 導入・確認・OBS 設定・試験のスクリプト |
+| `tools/` | 導入・確認・OBS 設定・試験・インストーラー作成のスクリプト |
+| `packaging/` | PyInstaller の spec、Inno Setup のスクリプト、第三者の部品の表記 |
 | `tests/` | unittest |
+
+インストーラーを作る（PyInstaller と Inno Setup 6 が要る）:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-build.txt
+winget install JRSoftware.InnoSetup
+pwsh -NoProfile -File .\tools\build_installer.ps1   # → out\installer\VoiceChanger-Setup-<版>.exe
+```
+
+- 自分の声の録音から「自分の声の高さ」を測るときは、環境変数 `VOICECHANGER_SELF_VOICE_DIR` に WAV のフォルダを入れる（`engine self-pitch`）。
+- 試験でデータの置き場所を分けるときは、環境変数 `VOICECHANGER_DATA_DIR` を使う。
 
 ## ⚖️ 権利と注意
 
@@ -172,5 +203,11 @@ GUI は、`Run.ps1` で起動済みのエンジンにも接続できる（その
 このリポジトリのコードは **GPL-3.0-or-later** です（全文は [LICENSE](LICENSE)）。
 
 使っているライブラリのライセンス: pedalboard（GPLv3）、obsws-python（GPL-3.0-only）、PySide6（LGPL）、numpy・sounddevice（BSD / MIT 系）。
-任意の依存 pylibrb（Rubber Band のバインディング）は、パッケージのメタデータが「GPLv2」で、「or later」かどうかは確認できていません。
-GPLv2 のみの場合は GPLv3 と組み合わせて配布できない可能性があるため、pylibrb はこのリポジトリに同梱せず、入れるかどうかは利用者の任意です（入れなくても dsp モードは numpy の自作実装で動きます）。
+インストーラーに入っている部品の一覧は [packaging/THIRD-PARTY-NOTICES.txt](packaging/THIRD-PARTY-NOTICES.txt)。
+
+- **pylibrb**（Rubber Band のバインディング。ピッチ・フォルマントに必須）: 作者の表記は「GPLv2」で、「or later」の表明は見つかっていません
+  （Rubber Band 本体は GPL-2.0-or-later）。GPLv2 のみの場合は GPLv3 の pedalboard と同じ配布物に入れられない可能性があるため、
+  インストーラーにもリポジトリにも同梱せず、利用者が PyPI から取得します（GUI の「部品を取得」、ソース版は `requirements-optional.txt`）。
+  入れないとピッチ・フォルマントのモードは使えません（AI・無音・素の声は動きます）。
+- **VB-CABLE**: VB-Audio Software の寄付ウェア。規約（https://vb-audio.com/Services/licensing.htm）に従い、Driver Pack46 をそのまま（AS IS）インストーラーに同梱しています。
+  VB-CABLE is a donationware, all participations are welcome. — www.vb-cable.com
