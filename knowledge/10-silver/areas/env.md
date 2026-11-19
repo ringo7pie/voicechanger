@@ -34,6 +34,9 @@
   ウィンドウを閉じる要求（CloseMainWindow）は子の本体に送る。中継役を強制終了すると本体も後始末なしに止まり、`control.json` が残る（PID の確認で無視される）。
 - 試験でエンジンや GUI を動かすときは `run --settings-file` を使い、本物の `data\settings.json` を書き換えない
   （GUI の `--self-test` は自動で `data\self_test_settings.json` を使う）。2026-11-17 に自己試験が本物の保存値を書き換えたので戻した。
+  `--self-test` は開始時に本物の `settings.json` を写すので、`--screenshot-dir` の画面には本物の保存値が出る。
+- 2026-11-19 の GUI 自己試験で「mute に切り替わり、出力が無音」が出力ピーク -85.8dB（判定は < -90dB）で不合格になった。他の段は合格。原因は未調査。
+- 公開先と公開の決まりは `knowledge/10-silver/areas/publishing.md` を Read する。
 - OBS 33.0.1 を websocket で設定した後に CloseMainWindow で閉じて起動し直すと、「OBS Studio のクラッシュが検出されました」が出て
   （`--disable-shutdown-check` を付けても出た）、シーンコレクションの入力と出力の設定（Output.Mode・RecFormat2・RecTracks・RecEncoder）が
   保存されていなかった（トラック名・映像・録画先は残った）。設定は動いている OBS のまま、プロファイルとシーンコレクションを一度別のものへ
