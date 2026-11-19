@@ -172,10 +172,14 @@ class SelfTest:
         for mode in ("dsp", "ai", "mute"):
             window.mode_buttons[mode].click()
             yield ("wait", lambda selected=mode: (window._status or {}).get("mode") == selected, 10.0)
-            first = len(self.statuses)
-            yield ("sleep", 3.0, 0)
-            peak = self._peak_since(first)
             expect_sound = mode != "mute"
+            if not expect_sound:
+                # output_peak_db は 1 ブロック（10ms）ごとに 1.5dB 下がるメーターの値で、直前のモードの声が
+                # 0dB から -90dB まで下がるのに約 0.6 秒かかる。下がりきってから測る
+                yield ("sleep", 1.0, 0)
+            first = len(self.statuses)
+            yield ("sleep", 3.0 if expect_sound else 2.0, 0)
+            peak = self._peak_since(first)
             self._step(f"{mode} に切り替わり、出力が{'鳴る' if expect_sound else '無音'}",
                        (window._status or {}).get("mode") == mode and ((peak > -40.0) if expect_sound else (peak < -90.0)),
                        output_peak_db=peak)

@@ -35,7 +35,9 @@
 - 試験でエンジンや GUI を動かすときは `run --settings-file` を使い、本物の `data\settings.json` を書き換えない
   （GUI の `--self-test` は自動で `data\self_test_settings.json` を使う）。2026-11-17 に自己試験が本物の保存値を書き換えたので戻した。
   `--self-test` は開始時に本物の `settings.json` を写すので、`--screenshot-dir` の画面には本物の保存値が出る。
-- 2026-11-19 の GUI 自己試験で「mute に切り替わり、出力が無音」が出力ピーク -85.8dB（判定は < -90dB）で不合格になった。他の段は合格。原因は未調査。
+- status の `output_peak_db` は瞬間値ではなく、ピークを保持して 1 ブロック（10ms）ごとに 1.5dB 下げるメーター値（`engine.py`）。
+  モードを切り替えた直後は前のモードの値が残る（0dB から -90dB まで約 0.6 秒）。無音の判定は切り替えの 1 秒後から測る
+  （2026-11-19 に自己試験の mute 段がこれで -61〜-89dB を拾って不合格になっていたのを直した）。
 - 公開先と公開の決まりは `knowledge/10-silver/areas/publishing.md` を Read する。
 - OBS 33.0.1 を websocket で設定した後に CloseMainWindow で閉じて起動し直すと、「OBS Studio のクラッシュが検出されました」が出て
   （`--disable-shutdown-check` を付けても出た）、シーンコレクションの入力と出力の設定（Output.Mode・RecFormat2・RecTracks・RecEncoder）が
