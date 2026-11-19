@@ -11,6 +11,7 @@
   `engine devices --json --json-out <file>` でファイルに受け取る。部品は `engine addons --pylibrb --beatrice-zip <zip>` でも入る。
 - 試し方: `/VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART /DIR=<scratchpad> /MERGETASKS="!desktopicon" /LOG=<file>` で
   UAC なしに入れ、`--self-test` を流し、`unins000.exe /VERYSILENT` で消す（2026-11-19 に全段合格・アンインストールを確認）。
+- 2026-11-19 に、v0.2.0 のインストーラーが他の PC で動作したとユーザーが報告した（試した機能の範囲は聞いていない）。
 - pylibrb は GPL-2.0（or-later の表明なし）なので同梱しない。GUI の「追加の部品」か `engine addons --pylibrb` で
   PyPI の cp312-abi3 wheel（URL と SHA-256 は `voicechanger\addons.py` に固定）を `runtime\lib` に入れる。
   dsp モードは pylibrb が無いと使えない（numpy の代替は無い）。`build_installer.ps1` は pylibrb が混ざったら止まる。
